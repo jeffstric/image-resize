@@ -159,41 +159,44 @@ $lastPos = strrpos($_SERVER[ 'SCRIPT_URL' ] , '/');
 $imagePath = substr($_SERVER[ 'SCRIPT_URL' ] , 0 , $lastPos);
 // remove IMAGES_IMPROVE_DIR_NAME
 $imagePath = substr($imagePath , strlen(IMAGES_IMPROVE_DIR_NAME) + 2);
-$imageFileName = substr($_SERVER[ 'SCRIPT_URL' ] , $lastPos + 1);
-if ( preg_match('%^([\w_-]+)___s_(\d+)x(\d+)\.(jpg|jpeg|png|gif)$%' , $imageFileName , $match) ) {
-    $fileName = $match[ 1 ] . '.' . $match[ 4 ];
-    $widthTo = $match[ 2 ];
-    $heightTo = $match[ 3 ];
 
-    if ( !isset($illegalSize) || !is_array($illegalSize) ) {
-	if ( isset($illegalSizeAdv) && is_array($illegalSizeAdv) && isset($illegalSizeAdv[ 'commonPath' ]) && isset($illegalSizeAdv[ 'illegalSizeDefault' ]) && isset($illegalSizeAdv[ 'illegalSize' ]) ) {
-	    $hasGroupSize = FALSE;
-	    foreach ( $illegalSizeAdv[ 'illegalSize' ] as $key => $value ) {
-		$groupPath = $illegalSizeAdv[ 'commonPath' ] . $key;
-		if ( strpos($imagePath , $groupPath) === 0 ) {
-		    $illegalSize = $illegalSizeAdv[ 'illegalSize' ][ $key ];
-		    $hasGroupSize = TRUE;
-		    break;
+//jude path is allow 
+if ( strpos($imagePath , $allowResizePath) === 0 ) {
+    $imageFileName = substr($_SERVER[ 'SCRIPT_URL' ] , $lastPos + 1);
+    if ( preg_match('%^([\w_-]+)___s_(\d+)x(\d+)\.(jpg|jpeg|png|gif)$%' , $imageFileName , $match) ) {
+	$fileName = $match[ 1 ] . '.' . $match[ 4 ];
+	$widthTo = $match[ 2 ];
+	$heightTo = $match[ 3 ];
+
+	if ( !isset($illegalSize) || !is_array($illegalSize) ) {
+	    if ( isset($illegalSizeAdv) && is_array($illegalSizeAdv) && isset($illegalSizeAdv[ 'commonPath' ]) && isset($illegalSizeAdv[ 'illegalSizeDefault' ]) && isset($illegalSizeAdv[ 'illegalSize' ]) ) {
+		$hasGroupSize = FALSE;
+		foreach ( $illegalSizeAdv[ 'illegalSize' ] as $key => $value ) {
+		    $groupPath = $illegalSizeAdv[ 'commonPath' ] . $key;
+		    if ( strpos($imagePath , $groupPath) === 0 ) {
+			$illegalSize = $illegalSizeAdv[ 'illegalSize' ][ $key ];
+			$hasGroupSize = TRUE;
+			break;
+		    }
 		}
+		if ( !$hasGroupSize )
+		    $illegalSize = $illegalSizeAdv[ 'illegalSizeDefault' ];
+	    } else {
+		die('Without reseize ini file or wrong type return .');
 	    }
-	    if ( !$hasGroupSize )
-		$illegalSize = $illegalSizeAdv[ 'illegalSizeDefault' ];
-	} else {
-	    die('Without reseize ini file or wrong type return .');
 	}
+
+	if ( !in_array(array( $widthTo , $heightTo ) , $illegalSize) ) {
+	    list($widthTo , $heightTo) = array_shift($illegalSize);
+	}
+
+	$imageFrom = $imagePath . DIRECTORY_SEPARATOR . $fileName;
+
+	imageProcess::reseizeImage($imageFrom , $widthTo , $heightTo);
     }
-
-    if ( !in_array(array( $widthTo , $heightTo ) , $illegalSize) ) {
-	list($widthTo , $heightTo) = array_shift($illegalSize);
-    }
-
-    $imageFrom = $imagePath . DIRECTORY_SEPARATOR . $fileName;
-
-    imageProcess::reseizeImage($imageFrom , $widthTo , $heightTo);
-} else {
-    header("Content-type:image/jpg");
-    echo file_get_contents(ERROR_IMAGE);
 }
+header("Content-type:image/jpg");
+echo file_get_contents(ERROR_IMAGE);
 
 
 

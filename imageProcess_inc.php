@@ -1,5 +1,5 @@
 <?php
-
+$allowResizePath = 'sites';
 $DEFAULT_IMAGE = 'sites/image/system/default.png';
 $ERROR_IMAGE = 'sites/image/system/error.jpg';
 
