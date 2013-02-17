@@ -1,0 +1,9 @@
+RewriteEngine on
+
+RewriteCond %{REQUEST_URI} ^/imagesi/(.*)
+RewriteCond %{DOCUMENT_ROOT}/%1 -f
+RewriteRule \.(jpg|jpeg|png|gif)$ %1 [L]
+
+RewriteCond %{REQUEST_URI} ^/imagesi/(.*)
+RewriteCond %{DOCUMENT_ROOT}/%1 !-f
+RewriteRule \.(jpg|jpeg|png|gif)$ imageProcess.php [L]
