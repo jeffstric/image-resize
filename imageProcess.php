@@ -155,14 +155,16 @@ class imageProcess
 
 }
 
-$lastPos = strrpos($_SERVER[ 'SCRIPT_URL' ] , '/');
-$imagePath = substr($_SERVER[ 'SCRIPT_URL' ] , 0 , $lastPos);
+$scriptUrl = isset($_SERVER[ 'SCRIPT_URL' ]) ? $_SERVER[ 'SCRIPT_URL' ] : $_SERVER[ 'REQUEST_URI' ];
+
+$lastPos = strrpos($scriptUrl , '/');
+$imagePath = substr($scriptUrl , 0 , $lastPos);
 // remove IMAGES_IMPROVE_DIR_NAME
 $imagePath = substr($imagePath , strlen(IMAGES_IMPROVE_DIR_NAME) + 2);
 
 //jude path is allow 
 if ( strpos($imagePath , $allowResizePath) === 0 ) {
-    $imageFileName = substr($_SERVER[ 'SCRIPT_URL' ] , $lastPos + 1);
+    $imageFileName = substr($scriptUrl , $lastPos + 1);
     if ( preg_match('%^([\w_-]+)___s_(\d+)x(\d+)\.(jpg|jpeg|png|gif)$%' , $imageFileName , $match) ) {
 	$fileName = $match[ 1 ] . '.' . $match[ 4 ];
 	$widthTo = $match[ 2 ];
@@ -193,6 +195,7 @@ if ( strpos($imagePath , $allowResizePath) === 0 ) {
 	$imageFrom = $imagePath . DIRECTORY_SEPARATOR . $fileName;
 
 	imageProcess::reseizeImage($imageFrom , $widthTo , $heightTo);
+	die();
     }
 }
 header("Content-type:image/jpg");
