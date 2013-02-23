@@ -6,8 +6,22 @@
  * blog:jeffsc.info
  * datetime:2012-6-27, 20:28:03
  * */
-$resizeIniFile = substr(__FILE__ , 0 , strlen(__FILE__) - 4) . '_inc.php';
+$filePrefix = substr(__FILE__ , 0 , strlen(__FILE__) - 4);
+$resizeIniFile = $filePrefix . '_inc.php';
+$fileFormat = $filePrefix . '_fileNameFormat.php';
 require $resizeIniFile;
+require $fileFormat;
+
+
+if ( isset($encryptFile) && file_exists($encryptFile) ) {
+    //require encryptFile
+    require dirname(__FILE__) . DIRECTORY_SEPARATOR . $encryptFile;
+}
+if ( class_exists('ImageProcessEncrypt') ) {
+    $encryptMode = TRUE;
+} else {
+    $encryptMode = FALSE;
+}
 
 define('IMAGES_IMPROVE_DIR_NAME' , 'imagesi');
 define('IMG_DIR_RELATIVE' , '');
@@ -29,7 +43,7 @@ class imageProcess
     );
     private static $legalType = array( 1 , 2 , 3 );
 
-    public static function reseizeImage( $imageFrom , $widthTo = 100 , $heightTo = 100 )
+    public static function reseizeImage( $imageFrom , $widthTo = 100 , $heightTo = 100 , $pw = FALSE )
     {
 
 	$path = self::$path;
@@ -37,7 +51,7 @@ class imageProcess
 
 	if ( !file_exists($target) ) {
 	    // use defualt image replace imageFrom
-	    $target = self::get_name_file_create(DEFAULT_IMAGE , $widthTo , $heightTo);
+	    $target = ImageProcessFileNameFormat::getName(DEFAULT_IMAGE , $widthTo , $heightTo , $pw);
 
 	    if ( file_exists($target) ) {
 		header("Content-type:image/png");
@@ -48,7 +62,7 @@ class imageProcess
 	    }
 	}
 
-	$outputFile = self::get_name_file_create($target , $widthTo , $heightTo);
+	$outputFile = ImageProcessFileNameFormat::getName($target , $widthTo , $heightTo , $pw);
 
 	list($width , $height , $type) = getimagesize($target);
 
@@ -146,57 +160,85 @@ class imageProcess
 	return $radio;
     }
 
-    private static function get_name_file_create( $originName , $width , $height )
-    {
-	$fileArr = explode('.' , $originName);
-	$extent = array_pop($fileArr);
-	return join('.' , $fileArr) . '___s_' . $width . 'x' . $height . '.' . $extent;
-    }
-
 }
 
-$lastPos = strrpos($_SERVER[ 'SCRIPT_URL' ] , '/');
-$imagePath = substr($_SERVER[ 'SCRIPT_URL' ] , 0 , $lastPos);
+$scriptUrl = isset($_SERVER[ 'SCRIPT_URL' ]) ? $_SERVER[ 'SCRIPT_URL' ] : $_SERVER[ 'REQUEST_URI' ];
+if ( isset($_SERVER[ 'SCRIPT_URL' ]) ) {
+    $scriptUrl = $_SERVER[ 'SCRIPT_URL' ];
+} else {
+    $pos = strrpos($_SERVER[ 'REQUEST_URI' ] , '?');
+    if ( $pos === FALSE ) {
+	$scriptUrl = $_SERVER[ 'REQUEST_URI' ];
+    } else {
+	$scriptUrl = substr($_SERVER[ 'REQUEST_URI' ] , 0 , $pos);
+    }
+}
+
+$lastPos = strrpos($scriptUrl , '/');
+$imagePath = substr($scriptUrl , 0 , $lastPos);
 // remove IMAGES_IMPROVE_DIR_NAME
 $imagePath = substr($imagePath , strlen(IMAGES_IMPROVE_DIR_NAME) + 2);
 
+try {
 //jude path is allow 
-if ( strpos($imagePath , $allowResizePath) === 0 ) {
-    $imageFileName = substr($_SERVER[ 'SCRIPT_URL' ] , $lastPos + 1);
-    if ( preg_match('%^([\w_-]+)___s_(\d+)x(\d+)\.(jpg|jpeg|png|gif)$%' , $imageFileName , $match) ) {
-	$fileName = $match[ 1 ] . '.' . $match[ 4 ];
-	$widthTo = $match[ 2 ];
-	$heightTo = $match[ 3 ];
+    if ( strpos($imagePath , $allowResizePath) === 0 ) {
+	$imageFileName = substr($scriptUrl , $lastPos + 1);
+	$pregPattern = ImageProcessFileNameFormat::getPattern();
 
-	if ( !isset($illegalSize) || !is_array($illegalSize) ) {
-	    if ( isset($illegalSizeAdv) && is_array($illegalSizeAdv) && isset($illegalSizeAdv[ 'commonPath' ]) && isset($illegalSizeAdv[ 'illegalSizeDefault' ]) && isset($illegalSizeAdv[ 'illegalSize' ]) ) {
-		$hasGroupSize = FALSE;
-		foreach ( $illegalSizeAdv[ 'illegalSize' ] as $key => $value ) {
-		    $groupPath = $illegalSizeAdv[ 'commonPath' ] . $key;
-		    if ( strpos($imagePath , $groupPath) === 0 ) {
-			$illegalSize = $illegalSizeAdv[ 'illegalSize' ][ $key ];
-			$hasGroupSize = TRUE;
-			break;
-		    }
+	$pattern = ($encryptMode) ? $pregPattern[ 1 ] : $pregPattern[ 0 ];
+
+	if ( preg_match($pattern , $imageFileName , $match) ) {
+
+	    $fileName = $match[ 'file' ] . '.' . $match[ 'type' ];
+	    $widthTo = $match[ 'w' ];
+	    $heightTo = $match[ 'h' ];
+	    $pw = (isset($match[ 'pw' ])) ? $match[ 'pw' ] : FALSE;
+
+	    if ( $encryptMode ) {
+		$checkStr = $fileName . $widthTo . $heightTo;
+		if ( !ImageProcessEncrypt::checkPW($pw , $checkStr) ) {
+		    throw new Exception('pw is illegal');
 		}
-		if ( !$hasGroupSize )
-		    $illegalSize = $illegalSizeAdv[ 'illegalSizeDefault' ];
-	    } else {
-		die('Without reseize ini file or wrong type return .');
 	    }
+
+	    if ( !isset($illegalSize) || !is_array($illegalSize) ) {
+		if ( isset($illegalSizeAdv) && is_array($illegalSizeAdv) && isset($illegalSizeAdv[ 'commonPath' ]) && isset($illegalSizeAdv[ 'illegalSizeDefault' ]) && isset($illegalSizeAdv[ 'illegalSize' ]) ) {
+		    $hasGroupSize = FALSE;
+		    foreach ( $illegalSizeAdv[ 'illegalSize' ] as $key => $value ) {
+			$groupPath = $illegalSizeAdv[ 'commonPath' ] . $key;
+			if ( strpos($imagePath , $groupPath) === 0 ) {
+			    $illegalSize = $illegalSizeAdv[ 'illegalSize' ][ $key ];
+			    $hasGroupSize = TRUE;
+			    break;
+			}
+		    }
+		    if ( !$hasGroupSize )
+			$illegalSize = $illegalSizeAdv[ 'illegalSizeDefault' ];
+		} else {
+		    throw new Exception('$illegalSize in config file is missing or illgal ');
+		}
+	    }
+
+	    if ( !in_array(array( $widthTo , $heightTo ) , $illegalSize) ) {
+		list($widthTo , $heightTo) = array_shift($illegalSize);
+	    }
+
+	    $imageFrom = $imagePath . DIRECTORY_SEPARATOR . $fileName;
+
+	    imageProcess::reseizeImage($imageFrom , $widthTo , $heightTo , $pw);
+	} else {
+	    throw new Exception('the file format is illegal');
 	}
-
-	if ( !in_array(array( $widthTo , $heightTo ) , $illegalSize) ) {
-	    list($widthTo , $heightTo) = array_shift($illegalSize);
-	}
-
-	$imageFrom = $imagePath . DIRECTORY_SEPARATOR . $fileName;
-
-	imageProcess::reseizeImage($imageFrom , $widthTo , $heightTo);
+    } else {
+	throw new Exception('path is not allow to image resize');
     }
+} catch ( Exception $e ) {
+    $debugModePw = isset($debugModePw) ? $debugModePw : 'debug';
+    if ( $_GET[ 'debug' ] == $debugModePw ) {
+	echo $e->getMessage();
+	die();
+    }
+
+    header("Content-type:image/jpg");
+    echo file_get_contents(ERROR_IMAGE);
 }
-header("Content-type:image/jpg");
-echo file_get_contents(ERROR_IMAGE);
-
-
-

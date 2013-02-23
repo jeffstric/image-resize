@@ -1,8 +1,14 @@
 <?php
+
+$debugModePw = 'jeffLoveTiny';
+
 $allowResizePath = 'sites';
 $DEFAULT_IMAGE = 'sites/image/system/default.png';
 $ERROR_IMAGE = 'sites/image/system/error.jpg';
 
+/**
+ *  size cumstom
+ */
 //default
 /*
   $illegalSize = array(
@@ -34,3 +40,8 @@ $illegalSizeAdv = array(
 	array( 400 , 400 ) ,
     ) ,
 );
+
+/**
+ *  encrypt cumstom  
+ */
+$encryptFile = 'imageProcessEncrypt.php';
